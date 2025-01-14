@@ -10,4 +10,4 @@ class AddConformerEmbeddings(BaseTransform):
 
     def __call__(self, data: Data | HeteroData):
         for store in data.stores:
-            batch = store.
+            batch = store

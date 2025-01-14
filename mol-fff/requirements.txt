@@ -1,0 +1,6 @@
+hydrantic==0.0.1
+networkx==3.4.2
+PyYAML==6.0.2
+rdkit==2024.9.4
+torch==2.5.1
+torch_geometric==2.6.1
