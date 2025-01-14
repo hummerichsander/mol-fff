@@ -1,0 +1,81 @@
+model_hparams:
+  module_name: core.models.graph_autoencoder.GraphAutoencoder
+
+  node_feature_dim: 9
+  node_feature_embedding_dim: 64
+  edge_feature_dim: 5
+  edge_feature_embedding_dim: 64
+  encoder_depth: 6
+  encoder_mlp_widths: [ 64 ]
+  encoder_aggr: "core.components.aggregations.VPA"
+  encoder_node_normalization: "graph"
+  encoder_edge_normalization: "batch"
+  node_feature_decoder_mlp_widths: [ 128, 128, 128 ]
+  node_feature_decoder_normalization: "layer"
+  structure_decoder_mlp_node_widths: [ 128 ]
+  structure_decoder_mlp_edge_widths: [ 128, 128, 128 ]
+  structure_decoder_normalization: "layer"
+  node_cross_entropy_beta: 1.0
+  edge_cross_entropy_beta: 10.0
+
+  optimizer:
+    module_name: torch.optim.Adam
+    kwargs:
+      lr: 0.0002
+      weight_decay: 0.001
+
+  scheduler:
+    module_name: torch.optim.lr_scheduler.ExponentialLR
+    kwargs:
+      gamma: 0.999
+
+  checkpoint:
+    monitor: validation/loss
+    save_last: true  # always checkpoints the latest run
+    save_top_k: 5  # saves the best 5 runs
+    save_every_n_epochs: 1  # evaluate checkpoints every epoch
+
+run_hparams:
+  trainer:
+    accelerator: cpu  # use gpu
+    max_epochs: 1_000  # number of epochs to train
+    precision: 64  # model weight precision (should be the same as dataset precision)
+
+  logger:
+    project: MolFFF  # name of the project in your w&b profile
+    log_model: false  # whether to log the model to w&b
+    offline: false  # whether to upload the logs to w&b
+
+data_hparams:
+  module_name: "core.data.QM9Data"
+  loader:
+    batch_size: 64
+    shuffle: False
+    pin_memory: False
+    drop_last: False
+    num_workers: 0
+    persistent_workers: False
+  split: [ 0.8, 0.1, 0.1 ]  # dataset split into train, validation (and test)
+  seed: 42  # Seed to use to split the dataset
+
+  root: "./data"
+  pre_transform:
+    - [
+      core.data.transforms.OneHotEncode,
+      { attrs: [ "z" ], num_classes: [ 9 ], shift: -1 },
+    ]
+    - [ core.data.transforms.SwapAttributes, { attr1: "x", attr2: "z" } ]
+    - [ core.data.transforms.AddEmptyEdges, { } ]
+    - [ core.data.transforms.PruneHydrogens, { } ]
+    - [ core.data.transforms.ChangeDataType, { attr: "x", dtype: "float64" } ]
+    - [ core.data.transforms.ChangeDataType, { attr: "edge_attr", dtype: "float64" } ]
+  pre_filter: core.data.filters.filter_valid
+
+hydra:
+  job:
+    name: QM9_Autoencoder
+  run:
+    dir: lightning_logs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: lightning_logs/${hydra.job.name}
+    subdir: ${hydra.job.override_dirname}
