@@ -19,9 +19,13 @@ class AddEmptyEdges(BaseTransform):
 
             # encode new edges with additional bond encoding
             old_edge_attr = store.edge_attr
-            new_edge_attr = self._get_empty_edges(new_edge_index.shape[1], old_edge_attr.shape[1])
+            new_edge_attr = self._get_empty_edges(
+                new_edge_index.shape[1], old_edge_attr.shape[1]
+            )
             indices = self._get_edge_indices(old_edge_index, new_edge_index)
-            old_edge_attr = torch.cat((old_edge_attr, torch.zeros(old_edge_attr.shape[0], 1)), dim=1)
+            old_edge_attr = torch.cat(
+                (old_edge_attr, torch.zeros(old_edge_attr.shape[0], 1)), dim=1
+            )
             new_edge_attr[indices] = old_edge_attr
 
             store["edge_index"] = new_edge_index
@@ -30,9 +34,13 @@ class AddEmptyEdges(BaseTransform):
 
     def _dense_edge_index(self, n_nodes: int) -> Tensor:
         """Returns a dense edge index tensor for a fully connected graph with n_nodes nodes."""
-        return torch.tensor([[i, j] for i in range(n_nodes) for j in range(n_nodes) if i != j]).t()
+        return torch.tensor(
+            [[i, j] for i in range(n_nodes) for j in range(n_nodes) if i != j]
+        ).t()
 
-    def _get_edge_indices(self, old_edge_index: Tensor, new_edge_index: Tensor) -> Tensor:
+    def _get_edge_indices(
+        self, old_edge_index: Tensor, new_edge_index: Tensor
+    ) -> Tensor:
         indices = torch.tensor([])
         for edge_index in old_edge_index.T:
             index = torch.where((new_edge_index.T == edge_index[None, :]).all(dim=1))

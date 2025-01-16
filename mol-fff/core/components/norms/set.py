@@ -60,7 +60,9 @@ class LayerNorm(nn.Module):
 SetNormType = Literal["layer", "set"]
 
 
-def get_set_norm(norm: SetNormType | None, feature_dim: int, *args, **kwargs) -> nn.Module | None:
+def get_set_norm(
+    norm: SetNormType | None, feature_dim: int, *args, **kwargs
+) -> nn.Module | None:
     """Get set normalization layer.
 
     :param norm: Normalization type.

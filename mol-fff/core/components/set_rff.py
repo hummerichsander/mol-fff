@@ -66,10 +66,14 @@ class RFF(nn.Module):
         dims = [self.input_dim] + self.intermediate_dims + [self.output_dim]
 
         for i in range(len(dims) - 2):
-            network["linear_layers"].append(nn.Linear(dims[i] + self.condition_dim, dims[i + 1]))
+            network["linear_layers"].append(
+                nn.Linear(dims[i] + self.condition_dim, dims[i + 1])
+            )
             if norm := get_set_norm(self.norm, dims[i + 1]):
                 network["normalization_layers"].append(norm)
-        network["linear_layers"].append(nn.Linear(dims[-2] + self.condition_dim, dims[-1]))
+        network["linear_layers"].append(
+            nn.Linear(dims[-2] + self.condition_dim, dims[-1])
+        )
 
         return network
 

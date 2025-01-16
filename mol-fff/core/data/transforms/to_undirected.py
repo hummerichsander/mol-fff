@@ -11,6 +11,8 @@ class ToUndirected(BaseTransform):
 
     def __call__(self, data: Data | HeteroData):
         for store in data.stores:
-            store["edge_index"], store["edge_attr"] = to_undirected(store["edge_index"], store["edge_attr"])
+            store["edge_index"], store["edge_attr"] = to_undirected(
+                store["edge_index"], store["edge_attr"]
+            )
 
         return data

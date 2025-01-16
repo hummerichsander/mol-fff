@@ -11,17 +11,17 @@ class MLP(nn.Module):
     """Multi-layer perceptron."""
 
     def __init__(
-            self,
-            input_dim: int,
-            output_dim: int,
-            intermediate_dims: list[int] = [],
-            condition_dim: int = 0,
-            condition_mode: Literal["concat_input", "concat_every"] | None = None,
-            activation: str = "torch.nn.ReLU",
-            activation_kwargs: dict = {},
-            norm: Literal["batch", "layer"] | None = None,
-            norm_kwargs: dict = {},
-            dropout: float = 0.0,
+        self,
+        input_dim: int,
+        output_dim: int,
+        intermediate_dims: list[int] = [],
+        condition_dim: int = 0,
+        condition_mode: Literal["concat_input", "concat_every"] | None = None,
+        activation: str = "torch.nn.ReLU",
+        activation_kwargs: dict = {},
+        norm: Literal["batch", "layer"] | None = None,
+        norm_kwargs: dict = {},
+        dropout: float = 0.0,
     ):
         super(MLP, self).__init__()
 

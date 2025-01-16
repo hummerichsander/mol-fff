@@ -18,7 +18,9 @@ class PruneHydrogens(BaseTransform):
 
             hydrogen_mask = store["x"][:, self.hydrogen_index] == 1
             hydrogen_indices = torch.where(store["x"][:, 0] == 1)[0]
-            hydrogen_edge_mask = torch.isin(store["edge_index"], hydrogen_indices).any(dim=0)
+            hydrogen_edge_mask = torch.isin(store["edge_index"], hydrogen_indices).any(
+                dim=0
+            )
 
             store["x"] = store["x"][~hydrogen_mask]
             if "z" in store:

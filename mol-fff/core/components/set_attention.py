@@ -107,7 +107,9 @@ class MAB(nn.Module):
 
         self._reset_parameters()
 
-    def forward(self, Q, K, lengths: Tensor, mask: list[str] = [], c: Optional[Tensor] = None) -> Tensor:
+    def forward(
+        self, Q, K, lengths: Tensor, mask: list[str] = [], c: Optional[Tensor] = None
+    ) -> Tensor:
         """Computes the multi-head attention between queries and keys and transforms the values.
 
         :param Q: The queries of shape (batch_size, num_queries, dim_Q)
@@ -230,5 +232,7 @@ class ISAB(nn.Module):
         self.mab1 = MAB(input_dim, input_dim, output_dim, *args, **kwargs)
 
     def forward(self, x: Tensor, lengths: Tensor) -> Tensor:
-        H = self.mab0(self.seeds.expand(x.size(0), -1, -1), x, lengths=lengths, mask=["K"])
+        H = self.mab0(
+            self.seeds.expand(x.size(0), -1, -1), x, lengths=lengths, mask=["K"]
+        )
         return self.mab1(x, H, lengths=lengths, mask=["Q"])

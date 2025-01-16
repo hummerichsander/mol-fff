@@ -13,6 +13,7 @@ from ..utils.utils import import_from_string
 
 class GeometricDataHparams(DataHparams):
     """A class for storing PyTorch Geometric data hparams."""
+
     transform: list[tuple[str, dict]] | Callable | None = None
     pre_transform: list[tuple[str, dict]] | Callable | None = None
     pre_filter: str | Callable | None = None
@@ -29,8 +30,12 @@ class GeometricData(PyTorchData, ABC):
         if hparams.transform is not None and not isinstance(hparams.transform, Compose):
             hparams.transform = self._get_transform_composition(hparams.transform)
 
-        if hparams.pre_transform is not None and not isinstance(hparams.pre_transform, Compose):
-            hparams.pre_transform = self._get_transform_composition(hparams.pre_transform)
+        if hparams.pre_transform is not None and not isinstance(
+            hparams.pre_transform, Compose
+        ):
+            hparams.pre_transform = self._get_transform_composition(
+                hparams.pre_transform
+            )
 
         if hparams.pre_filter is not None and isinstance(hparams.pre_filter, str):
             hparams.pre_filter = import_from_string(hparams.pre_filter)
@@ -54,7 +59,9 @@ class GeometricData(PyTorchData, ABC):
         )
 
     @staticmethod
-    def _get_transform_composition(transforms: list[tuple[str, dict]] | Compose) -> Compose:
+    def _get_transform_composition(
+        transforms: list[tuple[str, dict]] | Compose
+    ) -> Compose:
         """Converts a list of transform strings + kwargs to a transform composition.
         :param transforms: A list of transform strings + kwargs.
 

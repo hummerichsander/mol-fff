@@ -5,7 +5,9 @@ from torch import nn
 VectorNormType = Literal["batch", "layer"]
 
 
-def get_vector_norm(norm: VectorNormType | None, feature_dim: int, *args, **kwargs) -> nn.Module | None:
+def get_vector_norm(
+    norm: VectorNormType | None, feature_dim: int, *args, **kwargs
+) -> nn.Module | None:
     """Configure vector normalization layer.
 
     :param norm: Normalization type.

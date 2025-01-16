@@ -39,4 +39,6 @@ class GlobalTopKPool1d(nn.Module):
         return lengths
 
     def extra_repr(self) -> str:
-        return f"k={self.k.item()}, largest={self.largest.item()}, dim={self.dim.item()}"
+        return (
+            f"k={self.k.item()}, largest={self.largest.item()}, dim={self.dim.item()}"
+        )

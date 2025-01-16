@@ -86,7 +86,9 @@ class MMD(nn.Module):
             case "rbf":
                 return self._rbf
             case other:
-                raise ValueError(f"kernel must be in ['multiscale', 'rbf'], got {kernel}")
+                raise ValueError(
+                    f"kernel must be in ['multiscale', 'rbf'], got {kernel}"
+                )
 
     @staticmethod
     def _get_reduction(reduction: Literal["mean", "sum"] | None) -> Callable:
@@ -98,4 +100,6 @@ class MMD(nn.Module):
             case None:
                 return lambda x: x
             case other:
-                raise ValueError(f"reduction must be in ['mean', 'sum', 'none'], got {other}")
+                raise ValueError(
+                    f"reduction must be in ['mean', 'sum', 'none'], got {other}"
+                )

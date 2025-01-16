@@ -10,7 +10,9 @@ class CrossEntropy(torch.nn.Module):
         super().__init__()
         accelerator = kwargs.pop("accelerator", None)
         if "weight" in kwargs:
-            kwargs["weight"] = torch.tensor(kwargs["weight"]).to(device="cuda" if accelerator == "gpu" else "cpu")
+            kwargs["weight"] = torch.tensor(kwargs["weight"]).to(
+                device="cuda" if accelerator == "gpu" else "cpu"
+            )
         self.attr = attr
         self.loss_fn = CrossEntropyLoss(**kwargs)
 

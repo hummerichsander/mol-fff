@@ -34,12 +34,23 @@ class DegreeMMD(nn.Module):
         adj_2 = geometric_to_adjacency(batch_2)
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            degree_distributions_1 = list(executor.map(self.get_degree_distribution, adj_1))
-            degree_distributions_2 = list(executor.map(self.get_degree_distribution, adj_2))
+            degree_distributions_1 = list(
+                executor.map(self.get_degree_distribution, adj_1)
+            )
+            degree_distributions_2 = list(
+                executor.map(self.get_degree_distribution, adj_2)
+            )
 
-        max_degree = max([len(h) for h in degree_distributions_1] + [len(h) for h in degree_distributions_2])
-        degree_distributions_1 = self._pad_to_max_size(degree_distributions_1, max_degree)
-        degree_distributions_2 = self._pad_to_max_size(degree_distributions_2, max_degree)
+        max_degree = max(
+            [len(h) for h in degree_distributions_1]
+            + [len(h) for h in degree_distributions_2]
+        )
+        degree_distributions_1 = self._pad_to_max_size(
+            degree_distributions_1, max_degree
+        )
+        degree_distributions_2 = self._pad_to_max_size(
+            degree_distributions_2, max_degree
+        )
 
         return self.mmd(degree_distributions_1, degree_distributions_2)
 
@@ -51,7 +62,12 @@ class DegreeMMD(nn.Module):
         return degree_distribution
 
     def _pad_to_max_size(self, hist: List[Tensor], max_size) -> Tensor:
-        return torch.stack([torch.cat([h, torch.zeros(max_size - len(h), dtype=torch.float32)]) for h in hist])
+        return torch.stack(
+            [
+                torch.cat([h, torch.zeros(max_size - len(h), dtype=torch.float32)])
+                for h in hist
+            ]
+        )
 
 
 class ClusteringMMD(nn.Module):
@@ -87,8 +103,12 @@ class ClusteringMMD(nn.Module):
 
     def get_cluster_coefficient_distribution(self, adj: Tensor) -> Tensor:
         G = nx.from_numpy_array(adj.numpy())
-        cluster_coefficients = torch.tensor(list(nx.clustering(G).values()), dtype=torch.float32)
-        return torch.histogram(cluster_coefficients, bins=self.bins, range=(0, 1), density=self.normalize).hist
+        cluster_coefficients = torch.tensor(
+            list(nx.clustering(G).values()), dtype=torch.float32
+        )
+        return torch.histogram(
+            cluster_coefficients, bins=self.bins, range=(0, 1), density=self.normalize
+        ).hist
 
 
 class LaplacianSpectrumMMD(nn.Module):
@@ -113,12 +133,18 @@ class LaplacianSpectrumMMD(nn.Module):
         adj_2 = geometric_to_adjacency(batch_2)
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            laplacian_spectrum_1 = torch.stack(list(executor.map(self.get_laplacian_spectrum, adj_1)))
-            laplacian_spectrum_2 = torch.stack(list(executor.map(self.get_laplacian_spectrum, adj_2)))
+            laplacian_spectrum_1 = torch.stack(
+                list(executor.map(self.get_laplacian_spectrum, adj_1))
+            )
+            laplacian_spectrum_2 = torch.stack(
+                list(executor.map(self.get_laplacian_spectrum, adj_2))
+            )
 
         return self.mmd(laplacian_spectrum_1, laplacian_spectrum_2)
 
     def get_laplacian_spectrum(self, adj: Tensor) -> Tensor:
         G = nx.from_numpy_array(adj.numpy())
         laplacian_spectrum = torch.tensor(nx.linalg.normalized_laplacian_spectrum(G))
-        return torch.histogram(laplacian_spectrum, bins=self.bins, range=(0, 2), density=self.normalize).hist
+        return torch.histogram(
+            laplacian_spectrum, bins=self.bins, range=(0, 2), density=self.normalize
+        ).hist
