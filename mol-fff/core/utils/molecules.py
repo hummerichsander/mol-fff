@@ -10,8 +10,8 @@ from torch_geometric.utils import to_undirected
 
 
 def geometric_to_mol(
-    graph: GeometricData | GeometricBatch | list[GeometricData],
-    max_workers: Optional[int] = None,
+        graph: GeometricData | GeometricBatch | list[GeometricData],
+        max_workers: Optional[int] = None,
 ) -> list[RWMol]:
     """Transforms a PyG graph or batch of graphs into a list of RDKit molecules
     :param graph: The graph instance or batch of graphs.
@@ -51,7 +51,7 @@ def geometric_to_mol(
 
 
 def atom_from_one_hot(
-    one_hot: Tensor, profile: Literal["qm9", "zinc", "pcqm4m"]
+        one_hot: Tensor, profile: Literal["qm9", "zinc", "pcqm4m", "unimers"]
 ) -> Chem.Atom:
     """Converts a one-hot encoded atom type to Chem.Atom
 
@@ -142,8 +142,15 @@ def atom_from_one_hot(
                 26: "C H1 -",
                 27: "P H1 +",
             }
-        case _:
-            raise ValueError(f"Unknown atom profile: {profile}")
+        case "unimers":
+            atom_mapping = {
+                0: "C",
+                1: "N",
+                2: "O",
+                3: "F",
+            }
+        case other:
+            raise ValueError(f"Unknown atom profile: {other}")
 
     atom_type = int(one_hot.argmax().item())
 
@@ -170,7 +177,7 @@ def atom_from_one_hot(
 
 
 def bond_from_one_hot(
-    one_hot: Tensor, profile: Literal["qm9", "zinc", "pcqm4m"] = "qm9"
+        one_hot: Tensor, profile: Literal["qm9", "zinc", "pcqm4m", "unimers"] = "qm9"
 ) -> Chem.BondType:
     """Converts a one-hot encoded bond type to Chem.BondType
 
@@ -202,8 +209,15 @@ def bond_from_one_hot(
                 2: Chem.BondType.TRIPLE,
                 3: None,
             }
-        case _:
-            raise ValueError(f"Unknown bond profile: {profile}")
+        case "unimers":
+            bond_types = {
+                0: Chem.BondType.SINGLE,
+                1: Chem.BondType.DOUBLE,
+                2: Chem.BondType.TRIPLE,
+                3: None
+            }
+        case other:
+            raise ValueError(f"Unknown bond profile: {other}")
 
     bond_type = int(one_hot.argmax().item())
 
@@ -214,10 +228,10 @@ def bond_from_one_hot(
 
 
 def get_molecule_from_data(
-    x: Tensor,
-    edge_index: Tensor,
-    edge_attr: Tensor,
-    profile: Literal["qm9", "zinc", "pcqm4m"] = "qm9",
+        x: Tensor,
+        edge_index: Tensor,
+        edge_attr: Tensor,
+        profile: Literal["qm9", "zinc", "pcqm4m", "unimers"] = "qm9",
 ) -> Chem.RWMol:
     """Converts a PyTorch Geometric graph to an RDKit molecule
 
