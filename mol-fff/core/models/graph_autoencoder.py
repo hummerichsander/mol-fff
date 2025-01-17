@@ -235,7 +235,10 @@ class GraphAutoencoder(Model):
         :return: A tuple of node embeddings and edge embeddings."""
 
         if self.hparams.random_node_feature_dim > 0:
-            x = torch.cat((x, torch.randn(*x.shape[:-1], self.hparams.random_node_feature_dim)), dim=-1)
+            x = torch.cat(
+                (x, torch.randn(*x.shape[:-1], self.hparams.random_node_feature_dim, dtype=x.dtype, device=x.device)),
+                dim=-1
+            )
         x = self.node_embedding_layer(x)
         edge_attr = self.edge_embedding_layer(edge_attr)
         for layer in self.encoder_layers:
