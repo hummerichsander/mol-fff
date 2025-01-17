@@ -105,8 +105,8 @@ def compute_number_of_connected_components(batch: GeometricBatch) -> Tensor:
     :param batch: The batch of graphs.
     :return: The number of connected components in each graph in the batch."""
 
-    edge_attr_probs = torch.softmax(batch.edge_attr, dim=-1)
-    prob_edge = (edge_attr_probs.argmax(dim=-1) != 4).to(torch.float)
+    empty_edge_index = batch.edge_attr.shape[-1] - 1
+    prob_edge = (batch.edge_attr.argmax(dim=-1) != empty_edge_index).to(torch.float)
 
     adj = to_dense_adj(batch.edge_index, batch.batch, edge_attr=prob_edge)
 
