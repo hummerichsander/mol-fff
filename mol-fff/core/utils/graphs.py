@@ -25,8 +25,8 @@ def geometric_to_networkx(data: GeometricData) -> NetworkXGraph:
 
 
 def geometric_to_adjacency(
-    graph: GeometricData | GeometricBatch | list[GeometricData],
-    max_workers: Optional[int] = None,
+        graph: GeometricData | GeometricBatch | list[GeometricData],
+        max_workers: Optional[int] = None,
 ) -> list[Tensor]:
     """Transforms a PyG graph or batch of graphs into a list of adjacency matrices
     :param graph: The graph instance or batch of graphs.
@@ -53,7 +53,7 @@ def geometric_to_adjacency(
 
 
 def adj_from_binary_edge_attr(
-    x: Tensor, edge_index: Tensor, edge_attr: Tensor
+        x: Tensor, edge_index: Tensor, edge_attr: Tensor
 ) -> Tensor:
     """Computes the adjacency matrix from the edge index and edge attribute tensors.
     :param x: node features
@@ -68,7 +68,7 @@ def adj_from_binary_edge_attr(
 
 
 def dense_edge_index(
-    n_nodes: int, device: torch.device, self_loops: bool = False
+        n_nodes: int, device: torch.device, self_loops: bool = False
 ) -> Tensor:
     """Generated a dense edge index tensor for a fully connected graph with n nodes
     :param n_nodes: number of nodes in the graph
@@ -94,7 +94,7 @@ def generate_batch_tensor(num_nodes: list[int], device: torch.device) -> Tensor:
     batch = torch.zeros(sum(num_nodes), dtype=torch.long, device=device)
     idx = 0
     for i, n in enumerate(num_nodes):
-        batch[idx : idx + n] = i
+        batch[idx: idx + n] = i
         idx = idx + n
     return batch
 
@@ -115,3 +115,17 @@ def compute_number_of_connected_components(batch: GeometricBatch) -> Tensor:
     ]
 
     return torch.tensor(n_components, dtype=torch.float)
+
+
+def is_equal_graph(data0: GeometricData, data1: GeometricData) -> bool:
+    """Determines if the graphs specified by `x` and `edge_attr` are the same.
+
+    :param data0: Graph instance
+    :param data1: Graph instance
+    :return: A boolean indicating if the graphs are equal."""
+
+    x0_c = data0.x.argmax(dim=-1)
+    edge_attr0_c = data0.edge_attr.argmax(dim=-1)
+    x1_c = data1.x.argmax(dim=-1)
+    edge_attr1_c = data1.edge_attr.argmax(dim=-1)
+    return torch.equal(x0_c, x1_c) and torch.equal(edge_attr0_c, edge_attr1_c)

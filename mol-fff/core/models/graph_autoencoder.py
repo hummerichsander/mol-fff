@@ -10,7 +10,7 @@ from ..components.mlp import MLP
 from ..components.norms.graph import GraphNormType, get_graph_norm
 from ..components.norms.vector import VectorNormType, get_vector_norm
 from ..metrics import GeometricPrecision, CrossEntropy, MMD
-from ..utils.graphs import compute_number_of_connected_components
+from ..utils.graphs import compute_number_of_connected_components, is_equal_graph
 from ..utils.utils import import_from_string
 
 
@@ -52,15 +52,15 @@ class GraphAutoencoder(Model):
         """Encoder layer for the split autoencoder."""
 
         def __init__(
-            self,
-            node_in_channels: int,
-            node_out_channels: int,
-            edge_in_channels: int,
-            edge_out_channels: int,
-            aggr: str | gnn.Aggregation = "core.components.aggregations.VPA",
-            node_normalization: GraphNormType = "graph",
-            edge_normalization: VectorNormType = "batch",
-            mlp_widths: List[int] = [],
+                self,
+                node_in_channels: int,
+                node_out_channels: int,
+                edge_in_channels: int,
+                edge_out_channels: int,
+                aggr: str | gnn.Aggregation = "core.components.aggregations.VPA",
+                node_normalization: GraphNormType = "graph",
+                edge_normalization: VectorNormType = "batch",
+                mlp_widths: List[int] = [],
         ):
             if aggr.startswith("core.components.aggregations"):
                 aggr = import_from_string(aggr)()
@@ -91,11 +91,11 @@ class GraphAutoencoder(Model):
             )
 
         def forward(
-            self,
-            x: Tensor,
-            edge_index: Tensor,
-            edge_attr: Tensor,
-            batch: Tensor,
+                self,
+                x: Tensor,
+                edge_index: Tensor,
+                edge_attr: Tensor,
+                batch: Tensor,
         ) -> Tuple[Tensor, Tensor]:
             edge_attr = self.edge_updater(edge_index, edge_attr=edge_attr, x=x)
             if self.edge_normalization is not None:
@@ -114,7 +114,7 @@ class GraphAutoencoder(Model):
             return self.mlp_message(self.concat(x_j, edge_attr))
 
         def edge_update(
-            self, edge_index: Tensor, x_i: Tensor, x_j: Tensor, edge_attr: Tensor
+                self, edge_index: Tensor, x_i: Tensor, x_j: Tensor, edge_attr: Tensor
         ) -> Tensor:
             return self.mlp_edge_update(self.concat(x_i, x_j, edge_attr))
 
@@ -122,13 +122,13 @@ class GraphAutoencoder(Model):
         """Decoder for the split autoencoder."""
 
         def __init__(
-            self,
-            in_channels: int,
-            node_out_channels: int,
-            edge_out_channels: int,
-            normalization: VectorNormType = None,
-            mlp_node_widths: List[int] = [],
-            mlp_edge_widths: List[int] = [],
+                self,
+                in_channels: int,
+                node_out_channels: int,
+                edge_out_channels: int,
+                normalization: VectorNormType = None,
+                mlp_node_widths: List[int] = [],
+                mlp_edge_widths: List[int] = [],
         ):
             super().__init__()
 
@@ -152,10 +152,10 @@ class GraphAutoencoder(Model):
             )
 
         def forward(
-            self,
-            x: Tensor,
-            edge_index: Tensor,
-            batch: Tensor,
+                self,
+                x: Tensor,
+                edge_index: Tensor,
+                batch: Tensor,
         ) -> tuple[Tensor, Tensor]:
             edges = self.edge_updater(edge_index, x=x)
             nodes = self.propagate(edge_index, x=x)
@@ -222,11 +222,11 @@ class GraphAutoencoder(Model):
         self.edge_precision = GeometricPrecision(attr="edge_attr")
 
     def encode(
-        self,
-        x: Tensor,
-        edge_index: Tensor,
-        edge_attr: Tensor,
-        batch: Tensor | None = None,
+            self,
+            x: Tensor,
+            edge_index: Tensor,
+            edge_attr: Tensor,
+            batch: Tensor | None = None,
     ) -> Tensor:
         """Encode the input graph as a set of node embeddings.
 
@@ -256,7 +256,7 @@ class GraphAutoencoder(Model):
         return x
 
     def decode(
-        self, x: Tensor, edge_index: Tensor, batch: Tensor | None = None
+            self, x: Tensor, edge_index: Tensor, batch: Tensor | None = None
     ) -> tuple[Tensor, Tensor]:
         """Decode the input graph from node embeddings.
 
@@ -269,11 +269,11 @@ class GraphAutoencoder(Model):
         return x, edge_attr
 
     def forward(
-        self,
-        x: Tensor,
-        edge_index: Tensor,
-        edge_attr: Tensor,
-        batch: Tensor | None = None,
+            self,
+            x: Tensor,
+            edge_index: Tensor,
+            edge_attr: Tensor,
+            batch: Tensor | None = None,
     ):
         x = self.encode(x, edge_index, edge_attr, batch)
         x, edge_attr = self.decode(x, edge_index, batch)
@@ -296,13 +296,13 @@ class GraphAutoencoder(Model):
         metrics["node_cross_entropy"] = self.node_cross_entropy(batch, batch1)
         if self.hparams.node_cross_entropy_beta > 0:
             metrics["loss"] += (
-                self.hparams.node_cross_entropy_beta * metrics["node_cross_entropy"]
+                    self.hparams.node_cross_entropy_beta * metrics["node_cross_entropy"]
             )
 
         metrics["edge_cross_entropy"] = self.edge_cross_entropy(batch, batch1)
         if self.hparams.edge_cross_entropy_beta > 0:
             metrics["loss"] += (
-                self.hparams.edge_cross_entropy_beta * metrics["edge_cross_entropy"]
+                    self.hparams.edge_cross_entropy_beta * metrics["edge_cross_entropy"]
             )
 
         if not self.training:
@@ -314,12 +314,7 @@ class GraphAutoencoder(Model):
 
             fully_reconstructed: int = 0
             for i in range(len(batch)):
-                x_c = batch[i].x.argmax(dim=-1)
-                edge_attr_c = batch[i].edge_attr.argmax(dim=-1)
-                x1_c = batch1[i].x.argmax(dim=-1)
-                edge_attr1_c = batch1[i].edge_attr.argmax(dim=-1)
-                if torch.equal(x_c, x1_c) and torch.equal(edge_attr_c, edge_attr1_c):
-                    fully_reconstructed += 1
+                fully_reconstructed += int(is_equal_graph(batch[i], batch1[i]))
             metrics["molecule_precision"] = fully_reconstructed / len(batch)
 
         if self.hparams.mmd_beta:
