@@ -10,8 +10,8 @@ from torch_geometric.utils import to_undirected
 
 
 def geometric_to_mol(
-        graph: GeometricData | GeometricBatch | list[GeometricData],
-        max_workers: Optional[int] = None,
+    graph: GeometricData | GeometricBatch | list[GeometricData],
+    max_workers: Optional[int] = None,
 ) -> list[RWMol]:
     """Transforms a PyG graph or batch of graphs into a list of RDKit molecules
     :param graph: The graph instance or batch of graphs.
@@ -51,7 +51,7 @@ def geometric_to_mol(
 
 
 def atom_from_one_hot(
-        one_hot: Tensor, profile: Literal["qm9", "zinc", "pcqm4m", "unimers"]
+    one_hot: Tensor, profile: Literal["qm9", "zinc", "pcqm4m", "unimers"]
 ) -> Chem.Atom:
     """Converts a one-hot encoded atom type to Chem.Atom
 
@@ -177,7 +177,7 @@ def atom_from_one_hot(
 
 
 def bond_from_one_hot(
-        one_hot: Tensor, profile: Literal["qm9", "zinc", "pcqm4m", "unimers"] = "qm9"
+    one_hot: Tensor, profile: Literal["qm9", "zinc", "pcqm4m", "unimers"] = "qm9"
 ) -> Chem.BondType:
     """Converts a one-hot encoded bond type to Chem.BondType
 
@@ -214,7 +214,7 @@ def bond_from_one_hot(
                 0: Chem.BondType.SINGLE,
                 1: Chem.BondType.DOUBLE,
                 2: Chem.BondType.TRIPLE,
-                3: None
+                3: None,
             }
         case other:
             raise ValueError(f"Unknown bond profile: {other}")
@@ -228,10 +228,10 @@ def bond_from_one_hot(
 
 
 def get_molecule_from_data(
-        x: Tensor,
-        edge_index: Tensor,
-        edge_attr: Tensor,
-        profile: Literal["qm9", "zinc", "pcqm4m", "unimers"] = "qm9",
+    x: Tensor,
+    edge_index: Tensor,
+    edge_attr: Tensor,
+    profile: Literal["qm9", "zinc", "pcqm4m", "unimers"] = "qm9",
 ) -> Chem.RWMol:
     """Converts a PyTorch Geometric graph to an RDKit molecule
 
