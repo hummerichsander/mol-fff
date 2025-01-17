@@ -20,6 +20,8 @@ class GraphAutoencoderHParams(ModelHparams):
     edge_feature_dim: int
     edge_feature_embedding_dim: int
 
+    random_node_feature_dim: int = 0
+
     encoder_depth: int
     encoder_mlp_widths: list[int]
     encoder_aggr: str = "core.components.aggregations.VPA"
@@ -174,11 +176,10 @@ class GraphAutoencoder(Model):
     def __init__(self, hparams: GraphAutoencoderHParams):
         super().__init__(hparams)
 
-        print(self.hparams)
-
         # nn modules
         self.node_embedding_layer = nn.Linear(
-            self.hparams.node_feature_dim, self.hparams.node_feature_embedding_dim
+            self.hparams.node_feature_dim + self.hparams.random_node_feature_dim,
+            self.hparams.node_feature_embedding_dim
         )
         self.edge_embedding_layer = nn.Linear(
             self.hparams.edge_feature_dim, self.hparams.edge_feature_embedding_dim
@@ -233,6 +234,8 @@ class GraphAutoencoder(Model):
         :param batch: Batch indices.
         :return: A tuple of node embeddings and edge embeddings."""
 
+        if self.hparams.random_node_feature_dim > 0:
+            x = torch.cat((x, torch.randn(*x.shape[:-1], self.hparams.random_node_feature_dim)), dim=-1)
         x = self.node_embedding_layer(x)
         edge_attr = self.edge_embedding_layer(edge_attr)
         for layer in self.encoder_layers:
