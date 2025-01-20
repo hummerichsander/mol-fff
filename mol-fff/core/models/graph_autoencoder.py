@@ -27,6 +27,7 @@ class GraphAutoencoderHParams(ModelHparams):
     encoder_aggr: str = "core.components.aggregations.VPA"
     encoder_node_normalization: GraphNormType = "graph"
     encoder_edge_normalization: VectorNormType = "layer"
+    encoder_output_normalization: VectorNormType = None
 
     node_feature_decoder_mlp_widths: list[int]
     node_feature_decoder_normalization: VectorNormType = "layer"
@@ -201,6 +202,8 @@ class GraphAutoencoder(Model):
                 for _ in range(self.hparams.encoder_depth)
             ]
         )
+        if (norm := self.hparams.encoder_output_normalization) is not None:
+            self.encoder_output_norm = get_vector_norm(norm, self.hparams.node_feature_embedding_dim)
 
         self.decoder = self.Decoder(
             in_channels=self.hparams.node_feature_embedding_dim,
@@ -253,6 +256,8 @@ class GraphAutoencoder(Model):
         edge_attr = self.edge_embedding_layer(edge_attr)
         for layer in self.encoder_layers:
             x, edge_attr = layer(x, edge_index, edge_attr, batch)
+        if hasattr(self, "encoder_output_norm"):
+            x = self.encoder_output_norm(x)
         return x
 
     def decode(
