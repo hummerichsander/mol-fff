@@ -3,7 +3,7 @@ from typing import Optional, Literal
 import torch
 from torch import nn, Tensor
 
-from .norms import get_set_norm
+from .norms.set import get_set_norm, SetNormType
 from ..utils.masking import apply_masks
 from ..utils.utils import import_from_string
 
@@ -12,14 +12,14 @@ class RFF(nn.Module):
     """Row-wise feed forward network."""
 
     def __init__(
-        self,
-        input_dim: int,
-        output_dim: int,
-        intermediate_dims: list[int] = [],
-        condition_dim: int = 0,
-        activation: str = "torch.nn.ReLU",
-        norm: Literal["layer", "set"] | None = None,
-        dropout: float = 0.0,
+            self,
+            input_dim: int,
+            output_dim: int,
+            intermediate_dims: list[int] = [],
+            condition_dim: int = 0,
+            activation: str = "torch.nn.ReLU",
+            norm: SetNormType = None,
+            dropout: float = 0.0,
     ):
         super(RFF, self).__init__()
 

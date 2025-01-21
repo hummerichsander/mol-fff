@@ -1,5 +1,8 @@
 import os
 from importlib import import_module
+from contextlib import contextmanager
+
+import logging
 from typing import Tuple, Type
 
 import torch
@@ -14,10 +17,10 @@ def import_from_string(model_name: str) -> Type[nn.Module]:
 
 
 def add_parameter(
-    model: nn.Module,
-    name: str,
-    shape: Tuple[int],
-    initialization: str = "torch.nn.init.xavier_uniform_",
+        model: nn.Module,
+        name: str,
+        shape: Tuple[int],
+        initialization: str = "torch.nn.init.xavier_uniform_",
 ) -> None:
     """Initializes a parameter of a given shape and initialization and registers
     it under a given name in the model."""
@@ -28,7 +31,7 @@ def add_parameter(
 
 
 def get_latest_run(
-    model_type: Type[nn.Module], checkpoint_path: str, **kwargs
+        model_type: Type[nn.Module], checkpoint_path: str, **kwargs
 ) -> Tuple[nn.Module, int]:
     """Returns the latest run from the checkpoint path
     :param checkpoint_path: the path to the checkpoint
