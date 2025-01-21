@@ -1,5 +1,7 @@
 from typing import Literal, Any, Callable
 
+from rdkit.Chem.Draw import MolsToGridImage
+
 import torch
 from torch import nn, Tensor
 
@@ -28,7 +30,7 @@ class NodeEmbeddingFlowHparams(ModelHparams):
     dim: int
     latent_dim: int
     attention_dim: int
-    condition_dims: list[int]
+    condition_dims: list[int] | None = None
     length_encoding_dim: int
 
     graph_autoencoder_ckpt: str
@@ -188,6 +190,13 @@ class NodeEmbeddingFlow(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
             metrics["components"] = torch.tensor(Components()(mols_gen))
             metrics["uniqueness"] = torch.tensor(Uniqueness()(mols_gen))
 
+            if batch_idx == 0:
+                try:
+                    self.logger.log_image(
+                        "mols_gen", [MolsToGridImage(mols_gen[:min(len(mols_gen), 64)], molsPerRow=8)]
+                    )
+                except Exception as e:
+                    print(e)
         metrics["loss"] = loss.mean()
 
         return metrics
