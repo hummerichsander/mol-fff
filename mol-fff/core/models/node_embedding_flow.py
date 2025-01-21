@@ -274,7 +274,7 @@ class NodeEmbeddingFlow(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
             output_dim=channels_out,
             attention_dim=self.hparams.attention_dim,
             condition_dims=self.hparams.condition_dims,
-            mab_heads=self.hparams.mab_heads,
+            mab_heads=1,
             mab_norm=self.hparams.mab_norm,
             rff_intermediate_dims=self.hparams.rff_intermediate_dims,
             rff_activation=self.hparams.rff_activation,
