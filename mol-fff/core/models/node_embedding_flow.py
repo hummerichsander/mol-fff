@@ -44,7 +44,7 @@ class NodeEmbeddingFlowHparams(ModelHparams):
     mab_bias: bool = False
     rff_intermediate_dims: list[int]
     rff_activation: str = "torch.nn.ReLU"
-    rff_norm: SetNormType = "set"
+    rff_norm: SetNormType | None = "set"
     rff_dropout: float = 0.0
 
 
@@ -174,23 +174,23 @@ class NodeEmbeddingFlow(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
             metrics["mmd"] = mmd
             loss += mmd
 
-            z_gen = self.sample_z(z.shape[:-1], z.device, z.dtype)
-            h_gen = self.decode(z_gen, lengths, c=c)
-            batch_gen = self.reconstruct(h_gen, lengths)
-            mols_gen = [
-                get_molecule_from_data(
-                    batch_gen[i].x,
-                    batch_gen[i].edge_index,
-                    batch_gen[i].edge_attr,
-                    profile=self.graph_autoencoder.hparams.profile
-                )
-                for i in range(batch.num_graphs)
-            ]
-            metrics["validity"] = torch.tensor(Validity()(mols_gen))
-            metrics["components"] = torch.tensor(Components()(mols_gen))
-            metrics["uniqueness"] = torch.tensor(Uniqueness()(mols_gen))
-
             if batch_idx == 0:
+                z_gen = self.sample_z(z.shape[:-1], z.device, z.dtype)
+                h_gen = self.decode(z_gen, lengths, c=c)
+                batch_gen = self.reconstruct(h_gen, lengths)
+                mols_gen = [
+                    get_molecule_from_data(
+                        batch_gen[i].x,
+                        batch_gen[i].edge_index,
+                        batch_gen[i].edge_attr,
+                        profile=self.graph_autoencoder.hparams.profile
+                    )
+                    for i in range(batch.num_graphs)
+                ]
+                metrics["validity"] = torch.tensor(Validity()(mols_gen))
+                metrics["components"] = torch.tensor(Components()(mols_gen))
+                metrics["uniqueness"] = torch.tensor(Uniqueness()(mols_gen))
+
                 try:
                     self.logger.log_image(
                         "mols_gen", [MolsToGridImage(mols_gen[:min(len(mols_gen), 64)], molsPerRow=8)]
