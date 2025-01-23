@@ -27,7 +27,6 @@ class GraphAutoencoderHParams(ModelHparams):
     encoder_aggr: str = "core.components.aggregations.VPA"
     encoder_node_normalization: GraphNormType = "graph"
     encoder_edge_normalization: VectorNormType = "layer"
-    embedding_normalization: GraphNormType = "graph"
 
     node_feature_decoder_mlp_widths: list[int]
     node_feature_decoder_normalization: VectorNormType = "layer"
@@ -93,13 +92,13 @@ class GraphAutoencoder(Model):
 
         def forward(self, x: Tensor, edge_index: Tensor, edge_attr: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
 
+            edge_attr = self.edge_updater(edge_index, edge_attr=edge_attr, x=x)
             if self.edge_normalization is not None:
                 edge_attr = self.edge_normalization(edge_attr)
+
+            x = self.propagate(edge_index, x=x, edge_attr=edge_attr)
             if self.node_normalization is not None:
                 x = self.node_normalization(x, batch=batch)
-
-            edge_attr = self.edge_updater(edge_index, edge_attr=edge_attr, x=x)
-            x = self.propagate(edge_index, x=x, edge_attr=edge_attr)
 
             return x, edge_attr
 
@@ -197,8 +196,6 @@ class GraphAutoencoder(Model):
                 for _ in range(self.hparams.encoder_depth)
             ]
         )
-        if (norm := self.hparams.embedding_normalization) is not None:
-            self.embedding_norm = get_graph_norm(norm, self.hparams.node_feature_embedding_dim)
 
         self.decoder = self.Decoder(
             in_channels=self.hparams.node_feature_embedding_dim,
@@ -251,8 +248,6 @@ class GraphAutoencoder(Model):
         edge_attr = self.edge_embedding_layer(edge_attr)
         for layer in self.encoder_layers:
             x, edge_attr = layer(x, edge_index, edge_attr, batch)
-        if hasattr(self, "embedding_norm"):
-            x = self.embedding_norm(x)
         return x
 
     def decode(
@@ -313,9 +308,9 @@ class GraphAutoencoder(Model):
             )
 
             fully_reconstructed: int = 0
-            for i in range(len(batch)):
+            for i in range(batch.num_graphs):
                 fully_reconstructed += int(is_equal_graph(batch[i], batch1[i]))
-            metrics["molecule_precision"] = fully_reconstructed / len(batch)
+            metrics["molecule_precision"] = fully_reconstructed / batch.num_graphs
 
         if self.hparams.mmd_beta:
             metrics["mmd"] = MMD()(x_code, torch.randn_like(x_code))
