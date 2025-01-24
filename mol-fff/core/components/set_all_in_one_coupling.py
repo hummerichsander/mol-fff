@@ -7,8 +7,10 @@ from torch import Tensor
 
 
 class SetAllInOneBlock(AllInOneBlock):
-    def forward(self, x: Tensor, lengths: Tensor, c: Optional[Tensor] = None, rev: bool = False) -> Tensor:
-        '''See base class docstring'''
+    def forward(
+        self, x: Tensor, lengths: Tensor, c: Optional[Tensor] = None, rev: bool = False
+    ) -> Tensor:
+        """See base class docstring"""
         original_shape = x.shape
         x = x.view(-1, x.size(-1))
 

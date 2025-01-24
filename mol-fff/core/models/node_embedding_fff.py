@@ -15,93 +15,103 @@ from hydrantic.model import ModelHparams, Model
 from .graph_autoencoder import GraphAutoencoder
 from ..mixins.set_fff import SetFreeFormFlowMixin
 from ..mixins.length_encoding import LengthEncodingMixin
-from ..components.norms.set import SetNormType
-from ..components.set_attention import SAB, MAB
+from ..components.set_attention import SAB
 from ..components.set_rff import RFF
 from ..components.set_all_in_one_coupling import SetAllInOneBlock
-from ..utils.masking import apply_masks, pad_sets, unpad_sets
+from ..utils.masking import pad_sets, unpad_sets
 from ..utils.graphs import dense_edge_index
 from ..utils.molecules import get_molecule_from_data
 from ..utils.sets import length_encoding
 from ..metrics.molecules import Validity, Components, Uniqueness
 
 
-class NodeEmbeddingFlowHparams(ModelHparams):
+class NodeEmbeddingFFFHparams(ModelHparams):
     dim: int
     latent_dim: int
-    attention_dim: int
-    condition_dim: int
-    length_encoding_dim: int
+    hidden_dim: int
+    mlp_widths: list[int]
+    heads: int
 
     graph_autoencoder_ckpt: str
 
     latent_distribution: Literal["normal"] = "normal"
     num_blocks: int
 
-    mab_heads: int
-    mab_norm: SetNormType = "set"
-    mab_remove_self_loops: bool
-    mab_bias: bool = False
-    rff_intermediate_dims: list[int]
-    rff_activation: str = "torch.nn.ReLU"
-    rff_norm: SetNormType | None = "set"
-    rff_dropout: float = 0.0
+    beta: float
 
 
-class NodeEmbeddingFlow(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
-    hparams_schema = NodeEmbeddingFlowHparams
+class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
+    hparams_schema = NodeEmbeddingFFFHparams
     graph_autoencoder: GraphAutoencoder
 
-    class SelfAttentionNet(nn.Module):
+    class HiddenFeatureInteraction(nn.Module):
         def __init__(
-            self,
-            input_dim: int,
-            output_dim: int,
-            attention_dim: int,
-            condition_dim: int,
-            mab_heads: int,
-            mab_norm: SetNormType = "set",
-            mab_remove_self_loops: bool = True,
-            mab_bias: bool = False,
-            rff_intermediate_dims: list[int] = [],
-            rff_activation: str = "torch.nn.ReLU",
-            rff_norm: SetNormType = "set",
-            rff_dropout: float = 0.0,
+                self,
+                input_dim: int,
+                output_dim: int,
+                hidden_dim: int,
+                heads: int,
+                mlp_widths: list[int],
         ):
             super().__init__()
-
-            self.sab = SAB(
-                input_dim=input_dim,
-                output_dim=attention_dim,
-                condition_dim=condition_dim,
-                heads=mab_heads,
-                norm=mab_norm,
-                remove_self_loops=mab_remove_self_loops,
-                bias=mab_bias,
-                condition_mode="element",
+            self.state_update = RFF(
+                hidden_dim + input_dim,
+                hidden_dim,
+                mlp_widths,
+                activation="torch.nn.SiLU",
+                norm="set",
             )
-
-            self.rff = RFF(
-                input_dim=attention_dim,
-                output_dim=output_dim,
-                intermediate_dims=rff_intermediate_dims,
-                condition_dim=condition_dim,
-                activation=rff_activation,
-                norm=rff_norm,
-                dropout=rff_dropout,
+            self.interaction = SAB(
+                hidden_dim,
+                hidden_dim,
+                heads,
+                remove_self_loops=False,
+                bias=False,
+                norm="set",
+            )
+            self.observation = RFF(
+                input_dim + hidden_dim,
+                output_dim,
+                mlp_widths,
+                activation="torch.nn.SiLU",
+                norm="set",
             )
 
         def forward(
-            self, x: Tensor, lengths: Tensor, c: Tensor | None = None
-        ) -> Tensor:
-            out = self.sab(x, lengths, c=c)
-            out = self.rff(out, lengths, c=c)
-            out = apply_masks(out, lengths)
-            return out
+                self, x: Tensor, s: Tensor, lengths: Tensor
+        ) -> tuple[Tensor, Tensor]:
+            s = self.state_update(torch.concat((s, x), dim=-1), lengths)
+            x = self.observation(
+                torch.concat((x, self.interaction(s, lengths)), dim=-1), lengths
+            )
+            return x, s
 
     def __init__(self, hparams):
         super().__init__(hparams)
-        self.blocks = self._configure_blocks(self._subnet_constructor)
+        self.encoder_layers = nn.ModuleList(
+            [
+                self.HiddenFeatureInteraction(
+                    self.hparams.dim,
+                    self.hparams.dim,
+                    self.hparams.hidden_dim,
+                    heads=self.hparams.heads,
+                    mlp_widths=self.hparams.mlp_widths,
+                )
+                for _ in range(self.hparams.num_blocks)
+            ]
+        )
+        self.decoder_layers = nn.ModuleList(
+            [
+                self.HiddenFeatureInteraction(
+                    self.hparams.dim,
+                    self.hparams.dim,
+                    self.hparams.hidden_dim,
+                    heads=self.hparams.heads,
+                    mlp_widths=self.hparams.mlp_widths,
+                )
+                for _ in range(self.hparams.num_blocks)
+            ]
+        )
         self.graph_autoencoder = self._configure_graph_autoencoder()
 
     def compute_metrics(self, batch: Any, batch_idx: int) -> dict[str, Tensor]:
@@ -110,17 +120,17 @@ class NodeEmbeddingFlow(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
         with torch.no_grad():
             h, lengths = self.embed(batch)
 
-        # conditioning
         c = None
-        c = self._apply_length_encoding(h, lengths, c)
 
         loss = torch.zeros(h.shape[0], device=h.device, dtype=h.dtype)
 
         if self.training:
             h.requires_grad_()
-            z, _, nll = self.nll_surrogate(h, lengths, c=c)
+            z, h1, nll = self.nll_surrogate(h, lengths, c=c)
             metrics["nll"] = sum_except_batch(nll).mean()
-            loss += nll
+            mse = sum_except_batch((h - h1).pow(2))
+            metrics["mse"] = mse.mean()
+            loss += nll + self.hparams.beta * mse
 
         else:
             z, mmd = self.latent_mmd(h, lengths, c=c)
@@ -197,8 +207,13 @@ class NodeEmbeddingFlow(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
         :return: A batch of latent node embeddings."""
 
         z = h
-        for block in self.blocks:
-            z = block(z, lengths, c=c, rev=False)
+        s = (
+            length_encoding(lengths, self.hparams.hidden_dim, z.device, z.dtype)
+            .unsqueeze(1)
+            .repeat(1, z.shape[1], 1)
+        )
+        for layer in self.encoder_layers:
+            z, s = layer(z, s, lengths)
         return z
 
     def decode(self, z: Tensor, lengths: Tensor, c: Tensor | None = None) -> Tensor:
@@ -210,8 +225,13 @@ class NodeEmbeddingFlow(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
         :return: A batch of node embeddings"""
 
         h = z
-        for block in reversed(self.blocks):
-            h = block(h, lengths, c=c, rev=True)
+        s = (
+            length_encoding(lengths, self.hparams.hidden_dim, z.device, z.dtype)
+            .unsqueeze(1)
+            .repeat(1, z.shape[1], 1)
+        )
+        for layer in self.decoder_layers:
+            h, s = layer(h, s, lengths)
         return h
 
     def _subnet_constructor(self, channels_in: int, channels_out: int) -> nn.Module:
@@ -231,7 +251,7 @@ class NodeEmbeddingFlow(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
         )
 
     def _configure_blocks(
-        self, subnet_constructor: Callable[[int, int], nn.Module]
+            self, subnet_constructor: Callable[[int, int], nn.Module]
     ) -> nn.ModuleList:
         blocks = nn.ModuleList()
         for _ in range(self.hparams.num_blocks):

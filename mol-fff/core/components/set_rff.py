@@ -12,14 +12,14 @@ class RFF(nn.Module):
     """Row-wise feed forward network."""
 
     def __init__(
-            self,
-            input_dim: int,
-            output_dim: int,
-            intermediate_dims: list[int] = [],
-            condition_dim: int = 0,
-            activation: str = "torch.nn.ReLU",
-            norm: SetNormType = None,
-            dropout: float = 0.0,
+        self,
+        input_dim: int,
+        output_dim: int,
+        intermediate_dims: list[int] = [],
+        condition_dim: int = 0,
+        activation: str = "torch.nn.ReLU",
+        norm: SetNormType = None,
+        dropout: float = 0.0,
     ):
         super(RFF, self).__init__()
 

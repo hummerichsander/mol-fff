@@ -12,7 +12,9 @@ class LengthEncodingMixin:
     class hparams:
         length_encoding_dim: int | None = None
 
-    def _apply_length_encoding(self, x: Tensor, lengths: Tensor, c: Optional[Tensor] = None) -> Optional[Tensor]:
+    def _apply_length_encoding(
+        self, x: Tensor, lengths: Tensor, c: Optional[Tensor] = None
+    ) -> Optional[Tensor]:
         if self.hparams.length_encoding_dim is None:
             return c
 

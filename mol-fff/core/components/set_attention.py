@@ -10,10 +10,10 @@ from ..utils.masking import apply_masks
 
 
 def set_softmax(
-        pre_activations: Tensor,
-        lengths: Tensor,
-        eps: float = 1e-15,
-        remove_self_loops: bool = False,
+    pre_activations: Tensor,
+    lengths: Tensor,
+    eps: float = 1e-15,
+    remove_self_loops: bool = False,
 ) -> Tensor:
     """Computed the softmax along the second dimension of `pre_activations`.
 
@@ -64,16 +64,16 @@ class MAB(nn.Module):
     """Taken and adapted from https://github.com/rajesh-lab/deep_permutation_invariant.git"""
 
     def __init__(
-            self,
-            dim_Q: int,
-            dim_K: int,
-            dim_V: int,
-            heads: int,
-            condition_dim: int = 0,
-            norm: SetNormType = "layer",
-            remove_self_loops: bool = False,
-            condition_mode: Literal["element", "set"] = "element",
-            bias: bool = False,
+        self,
+        dim_Q: int,
+        dim_K: int,
+        dim_V: int,
+        heads: int,
+        condition_dim: int = 0,
+        norm: SetNormType = "set",
+        remove_self_loops: bool = False,
+        condition_mode: Literal["element", "set"] = "element",
+        bias: bool = False,
     ):
         super(MAB, self).__init__()
 
@@ -108,7 +108,7 @@ class MAB(nn.Module):
         self._reset_parameters()
 
     def forward(
-            self, Q, K, lengths: Tensor, mask: list[str] = [], c: Optional[Tensor] = None
+        self, Q, K, lengths: Tensor, mask: list[str] = [], c: Optional[Tensor] = None
     ) -> Tensor:
         """Computes the multi-head attention between queries and keys and transforms the values.
 
@@ -155,7 +155,7 @@ class MAB(nn.Module):
         return O
 
     def apply_condition(
-            self, Q: Tensor, K: Tensor, lengths: Tensor, c: Optional[Tensor] = None
+        self, Q: Tensor, K: Tensor, lengths: Tensor, c: Optional[Tensor] = None
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Applies the condition to the queries, keys and lengths. If the condition mode is set to "element", it
         concatenates the condition to the queries and keys along the feature dimension; if the condition mode is set

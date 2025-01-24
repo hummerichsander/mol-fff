@@ -73,7 +73,8 @@ def get_set_norm(
         case None:
             return None
         case "layer":
-            return LayerNorm(feature_dim, *args, **kwargs)
+            raise NotImplementedError("Layer normalization is currently not working.")
+            # return LayerNorm(feature_dim, *args, **kwargs)
         case "set":
             return SetNorm(feature_dim, *args, **kwargs)
         case other:

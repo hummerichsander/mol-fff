@@ -14,7 +14,7 @@ from ..utils.graphs import compute_number_of_connected_components, is_equal_grap
 from ..utils.utils import import_from_string
 
 
-class GraphAutoencoderHParams(ModelHparams):
+class GraphAutoencoderHparams(ModelHparams):
     node_feature_dim: int
     node_feature_embedding_dim: int
     edge_feature_dim: int
@@ -46,21 +46,21 @@ class GraphAutoencoderHParams(ModelHparams):
 
 
 class GraphAutoencoder(Model):
-    hparams_schema = GraphAutoencoderHParams
+    hparams_schema = GraphAutoencoderHparams
 
     class EncoderLayer(gnn.MessagePassing):
         """Encoder layer for the split autoencoder."""
 
         def __init__(
-                self,
-                node_in_channels: int,
-                node_out_channels: int,
-                edge_in_channels: int,
-                edge_out_channels: int,
-                aggr: str | gnn.Aggregation = "core.components.aggregations.VPA",
-                node_normalization: GraphNormType = "graph",
-                edge_normalization: VectorNormType = "batch",
-                mlp_widths: List[int] = [],
+            self,
+            node_in_channels: int,
+            node_out_channels: int,
+            edge_in_channels: int,
+            edge_out_channels: int,
+            aggr: str | gnn.Aggregation = "core.components.aggregations.VPA",
+            node_normalization: GraphNormType = "graph",
+            edge_normalization: VectorNormType = "batch",
+            mlp_widths: List[int] = [],
         ):
             if aggr.startswith("core.components.aggregations"):
                 aggr = import_from_string(aggr)()
@@ -90,7 +90,9 @@ class GraphAutoencoder(Model):
                 intermediate_dims=mlp_widths,
             )
 
-        def forward(self, x: Tensor, edge_index: Tensor, edge_attr: Tensor, batch: Tensor) -> Tuple[Tensor, Tensor]:
+        def forward(
+            self, x: Tensor, edge_index: Tensor, edge_attr: Tensor, batch: Tensor
+        ) -> Tuple[Tensor, Tensor]:
 
             edge_attr = self.edge_updater(edge_index, edge_attr=edge_attr, x=x)
             if self.edge_normalization is not None:
@@ -109,21 +111,21 @@ class GraphAutoencoder(Model):
             return self.mlp_message(self.concat(x_j, edge_attr))
 
         def edge_update(
-                self, edge_index: Tensor, x_i: Tensor, x_j: Tensor, edge_attr: Tensor
+            self, edge_index: Tensor, x_i: Tensor, x_j: Tensor, edge_attr: Tensor
         ) -> Tensor:
             return self.mlp_edge_update(self.concat(x_i, x_j, edge_attr))
 
     class Decoder(gnn.MessagePassing):
-        """Decoder for the split autoencoder."""
+        """Decoder."""
 
         def __init__(
-                self,
-                in_channels: int,
-                node_out_channels: int,
-                edge_out_channels: int,
-                normalization: VectorNormType = None,
-                mlp_node_widths: List[int] = [],
-                mlp_edge_widths: List[int] = [],
+            self,
+            in_channels: int,
+            node_out_channels: int,
+            edge_out_channels: int,
+            normalization: VectorNormType = None,
+            mlp_node_widths: List[int] = [],
+            mlp_edge_widths: List[int] = [],
         ):
             super().__init__()
 
@@ -147,10 +149,10 @@ class GraphAutoencoder(Model):
             )
 
         def forward(
-                self,
-                x: Tensor,
-                edge_index: Tensor,
-                batch: Tensor,
+            self,
+            x: Tensor,
+            edge_index: Tensor,
+            batch: Tensor,
         ) -> tuple[Tensor, Tensor]:
             edges = self.edge_updater(edge_index, x=x)
             nodes = self.propagate(edge_index, x=x)
@@ -170,7 +172,7 @@ class GraphAutoencoder(Model):
         def update(self, aggr_out: Tensor, x: Tensor) -> Tensor:
             return self.node_classifier(aggr_out)
 
-    def __init__(self, hparams: GraphAutoencoderHParams):
+    def __init__(self, hparams: GraphAutoencoderHparams):
         super().__init__(hparams)
 
         # nn modules
@@ -217,11 +219,11 @@ class GraphAutoencoder(Model):
         self.edge_precision = GeometricPrecision(attr="edge_attr")
 
     def encode(
-            self,
-            x: Tensor,
-            edge_index: Tensor,
-            edge_attr: Tensor,
-            batch: Tensor | None = None,
+        self,
+        x: Tensor,
+        edge_index: Tensor,
+        edge_attr: Tensor,
+        batch: Tensor | None = None,
     ) -> Tensor:
         """Encode the input graph as a set of node embeddings.
 
@@ -251,7 +253,7 @@ class GraphAutoencoder(Model):
         return x
 
     def decode(
-            self, x: Tensor, edge_index: Tensor, batch: Tensor | None = None
+        self, x: Tensor, edge_index: Tensor, batch: Tensor | None = None
     ) -> tuple[Tensor, Tensor]:
         """Decode the input graph from node embeddings.
 
@@ -264,11 +266,11 @@ class GraphAutoencoder(Model):
         return x, edge_attr
 
     def forward(
-            self,
-            x: Tensor,
-            edge_index: Tensor,
-            edge_attr: Tensor,
-            batch: Tensor | None = None,
+        self,
+        x: Tensor,
+        edge_index: Tensor,
+        edge_attr: Tensor,
+        batch: Tensor | None = None,
     ):
         x = self.encode(x, edge_index, edge_attr, batch)
         x, edge_attr = self.decode(x, edge_index, batch)
@@ -291,13 +293,13 @@ class GraphAutoencoder(Model):
         metrics["node_cross_entropy"] = self.node_cross_entropy(batch, batch1)
         if self.hparams.node_cross_entropy_beta > 0:
             metrics["loss"] += (
-                    self.hparams.node_cross_entropy_beta * metrics["node_cross_entropy"]
+                self.hparams.node_cross_entropy_beta * metrics["node_cross_entropy"]
             )
 
         metrics["edge_cross_entropy"] = self.edge_cross_entropy(batch, batch1)
         if self.hparams.edge_cross_entropy_beta > 0:
             metrics["loss"] += (
-                    self.hparams.edge_cross_entropy_beta * metrics["edge_cross_entropy"]
+                self.hparams.edge_cross_entropy_beta * metrics["edge_cross_entropy"]
             )
 
         if not self.training:

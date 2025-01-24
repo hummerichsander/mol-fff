@@ -12,7 +12,9 @@ class LatentDistributionMixin:
         latent_dim: int
         latent_distribution: Literal["normal"]
 
-    def sample_z(self, shape: Size, device: torch.device, dtype: torch.dtype = torch.float32) -> Tensor:
+    def sample_z(
+        self, shape: Size, device: torch.device, dtype: torch.dtype = torch.float32
+    ) -> Tensor:
         """Samples from the latent distribution.
 
         :param shape: Shape of the samples.
@@ -24,7 +26,7 @@ class LatentDistributionMixin:
         return latent_distribution.sample(shape)
 
     def _get_latent_distribution(
-            self, device: torch.device, dtype: torch.dtype
+        self, device: torch.device, dtype: torch.dtype
     ) -> Distribution:
         """Returns the latent distribution specified in the hparams on the given device.
 
@@ -43,4 +45,6 @@ class LatentDistributionMixin:
                     1,
                 )
 
-        raise ValueError(f"Unknown latent distribution: {self.hparams.latent_distribution}")
+        raise ValueError(
+            f"Unknown latent distribution: {self.hparams.latent_distribution}"
+        )

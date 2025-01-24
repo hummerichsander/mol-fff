@@ -20,32 +20,33 @@ class SetFreeFormFlowMixin(LatentDistributionMixin):
         chunk_size: Tensor | None = None
 
     def encode(
-            self, x: Tensor, lengths: Tensor, *args, c: Tensor | None = None, **kwargs
+        self, x: Tensor, lengths: Tensor, *args, c: Tensor | None = None, **kwargs
     ) -> Tensor: ...
 
     def decode(
-            self, z: Tensor, lengths: Tensor, *args, c: Tensor | None = None, **kwargs
+        self, z: Tensor, lengths: Tensor, *args, c: Tensor | None = None, **kwargs
     ) -> Tensor: ...
 
     def _get_encode_prefilled(
-            self, lengths: Tensor, c: Tensor | None = None
+        self, lengths: Tensor, c: Tensor | None = None
     ) -> Callable[[Tensor], Tensor]:
         return lambda x: self.encode(x, lengths, c)
 
     def _get_decode_prefilled(
-            self, lengths: Tensor, c: Tensor | None = None
+        self, lengths: Tensor, c: Tensor | None = None
     ) -> Callable[[Tensor], Tensor]:
         return lambda z: self.decode(z, lengths, c)
 
     def nll_surrogate(
-            self, x: Tensor, lengths: Tensor, c: Tensor | None = None
+        self, x: Tensor, lengths: Tensor, c: Tensor | None = None
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Computes the negative log likelihood using the volume change surrogate.
 
         :param x: The input tensor.
         :param lengths: The lengths of the sets.
         :param c: The condition tensor.
-        :return: The latent code, the reconstruction and the negative log-likelihood surrogate."""
+        :return: The latent code, the reconstruction and the negative log-likelihood surrogate.
+        """
 
         encode_prefilled = self._get_encode_prefilled(lengths, c)
         decode_prefilled = self._get_decode_prefilled(lengths, c)
@@ -62,14 +63,15 @@ class SetFreeFormFlowMixin(LatentDistributionMixin):
         return z, x1, nll
 
     def nll_exact(
-            self, x: Tensor, lengths: Tensor, c: Tensor | None = None
+        self, x: Tensor, lengths: Tensor, c: Tensor | None = None
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Computes the exact negative log likelihood of the decoder.
 
         :param x: The input tensor.
         :param lengths: The lengths of the sets.
         :param c: The condition tensor.
-        :return: The latent code, the reconstruction and the exact negative log-likelihood."""
+        :return: The latent code, the reconstruction and the exact negative log-likelihood.
+        """
 
         encode_prefilled = self._get_encode_prefilled(lengths, c)
 
@@ -96,7 +98,7 @@ class SetFreeFormFlowMixin(LatentDistributionMixin):
         return z, x1, nll
 
     def assemble_log_prob(
-            self, z: Tensor, vol_change: Tensor, lengths: Tensor
+        self, z: Tensor, vol_change: Tensor, lengths: Tensor
     ) -> Tensor:
         """Assembles the log probability given the volume change and the lengths.
 
@@ -119,7 +121,7 @@ class SetFreeFormFlowMixin(LatentDistributionMixin):
         return log_prob
 
     def latent_mmd(
-            self, x: Tensor, lengths: Tensor, c: Tensor | None = None
+        self, x: Tensor, lengths: Tensor, c: Tensor | None = None
     ) -> tuple[Tensor, Tensor]:
         """Computes the latent MMD of the model, which can be used to monitor the learned latent distribution.
 
@@ -130,7 +132,8 @@ class SetFreeFormFlowMixin(LatentDistributionMixin):
 
         z = self.encode(x, lengths, c)
         z_sampled = self.sample_z(z.shape[:-1], z.device, z.dtype)
-        mmd = MMD(kernel="multiscale", bandwidth_range=[0.3, 0.5, 0.8, 1.0, 1.5, 2.0, 3.0, 5.0])(
-            z.reshape(z.shape[0], -1), z_sampled.view(z_sampled.shape[0], -1)
-        )
+        mmd = MMD(
+            kernel="multiscale",
+            bandwidth_range=[0.3, 0.5, 0.8, 1.0, 1.5, 2.0, 3.0, 5.0],
+        )(z.reshape(z.shape[0], -1), z_sampled.view(z_sampled.shape[0], -1))
         return z, mmd
