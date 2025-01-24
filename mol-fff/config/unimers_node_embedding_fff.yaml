@@ -4,6 +4,8 @@ model_hparams:
   dim: 10
   latent_dim: 10
   hidden_dim: 32
+  mlp_widths: [ 32 ]
+  heads: 2
   graph_autoencoder_ckpt: /Users/hummerichsander/PycharmProjects/mol-fff/mol-fff/lightning_logs/Selected Checkpoints/GraphAutoencoder_dim10.ckpt
   latent_distribution: normal
   num_blocks: 6
