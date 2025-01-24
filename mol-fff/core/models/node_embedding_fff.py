@@ -134,6 +134,9 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
 
         else:
             z, mmd = self.latent_mmd(h, lengths, c=c)
+            h1 = self.decode(z, lengths, c=c)
+            mse = sum_except_batch((h - h1).pow(2))
+            metrics["mse"] = mse.mean()
             metrics["mmd"] = mmd
             loss += mmd
 
