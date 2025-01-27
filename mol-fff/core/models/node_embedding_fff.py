@@ -77,6 +77,8 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
                 norm="set",
             )
 
+            self._reset_parameters()
+
         def forward(
                 self, x: Tensor, s: Tensor, lengths: Tensor
         ) -> tuple[Tensor, Tensor]:
@@ -85,6 +87,13 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
                 torch.concat((x, self.interaction(s, lengths)), dim=-1), lengths
             )
             return x, s
+
+        def _reset_parameters(self):
+            for module in self.modules():
+                if isinstance(module, nn.Linear):
+                    nn.init.kaiming_normal_(module.weight, mode="fan_in", nonlinearity="relu")
+                    if module.bias is not None:
+                        nn.init.zeros_(module.bias)
 
     def __init__(self, hparams):
         super().__init__(hparams)
