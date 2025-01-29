@@ -219,11 +219,8 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
         :return: A batch of latent node embeddings."""
 
         z = h
-        s = (
-            length_encoding(lengths, self.hparams.hidden_dim, z.device, z.dtype)
-            .unsqueeze(1)
-            .repeat(1, z.shape[1], 1)
-        )
+        s = length_encoding(lengths, self.hparams.hidden_dim, z.device, z.dtype).unsqueeze(1).repeat(1, z.shape[1], 1)
+        # torch.randn((*z.shape[:-1], self.hparams.hidden_dim), device=z.device, dtype=z.dtype)
         for layer in self.encoder_layers:
             z, s = layer(z, s, lengths)
         return z
@@ -237,11 +234,8 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
         :return: A batch of node embeddings"""
 
         h = z
-        s = (
-            length_encoding(lengths, self.hparams.hidden_dim, z.device, z.dtype)
-            .unsqueeze(1)
-            .repeat(1, z.shape[1], 1)
-        )
+        s = length_encoding(lengths, self.hparams.hidden_dim, z.device, z.dtype).unsqueeze(1).repeat(1, z.shape[1], 1)
+        # torch.randn((*h.shape[:-1], self.hparams.hidden_dim), device=h.device, dtype=h.dtype)
         for layer in self.decoder_layers:
             h, s = layer(h, s, lengths)
         return h
