@@ -29,6 +29,7 @@ class NodeEmbeddingFFFHparams(ModelHparams):
     dim: int
     latent_dim: int
     hidden_dim: int
+    rnf_dim: int = 0
     mlp_widths: list[int]
     heads: int
 
@@ -46,12 +47,12 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
 
     class HiddenFeatureInteraction(nn.Module):
         def __init__(
-                self,
-                input_dim: int,
-                output_dim: int,
-                hidden_dim: int,
-                heads: int,
-                mlp_widths: list[int],
+            self,
+            input_dim: int,
+            output_dim: int,
+            hidden_dim: int,
+            heads: int,
+            mlp_widths: list[int],
         ):
             super().__init__()
             self.state_update = RFF(
@@ -80,7 +81,7 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
             self._reset_parameters()
 
         def forward(
-                self, x: Tensor, s: Tensor, lengths: Tensor
+            self, x: Tensor, s: Tensor, lengths: Tensor
         ) -> tuple[Tensor, Tensor]:
             s = self.state_update(torch.concat((s, x), dim=-1), lengths)
             x = self.observation(
@@ -91,7 +92,9 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
         def _reset_parameters(self):
             for module in self.modules():
                 if isinstance(module, nn.Linear):
-                    nn.init.kaiming_normal_(module.weight, mode="fan_in", nonlinearity="relu")
+                    nn.init.kaiming_normal_(
+                        module.weight, mode="fan_in", nonlinearity="relu"
+                    )
                     if module.bias is not None:
                         nn.init.zeros_(module.bias)
 
@@ -219,8 +222,12 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
         :return: A batch of latent node embeddings."""
 
         z = h
-        s = length_encoding(lengths, self.hparams.hidden_dim, z.device, z.dtype).unsqueeze(1).repeat(1, z.shape[1], 1)
-        # torch.randn((*z.shape[:-1], self.hparams.hidden_dim), device=z.device, dtype=z.dtype)
+        s = (
+            length_encoding(lengths, self.hparams.hidden_dim - self.hparams.rnf_dim, z.device, z.dtype)
+            .unsqueeze(1)
+            .repeat(1, z.shape[1], 1)
+        )
+        s = s.concat((s, torch.randn((*z.shape[:-1], self.rnf_dim))), dim=-1)
         for layer in self.encoder_layers:
             z, s = layer(z, s, lengths)
         return z
@@ -234,8 +241,12 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
         :return: A batch of node embeddings"""
 
         h = z
-        s = length_encoding(lengths, self.hparams.hidden_dim, z.device, z.dtype).unsqueeze(1).repeat(1, z.shape[1], 1)
-        # torch.randn((*h.shape[:-1], self.hparams.hidden_dim), device=h.device, dtype=h.dtype)
+        s = (
+            length_encoding(lengths, self.hparams.hidden_dim - self.hparams.rnf_dim, z.device, z.dtype)
+            .unsqueeze(1)
+            .repeat(1, z.shape[1], 1)
+        )
+        s = s.concat((s, torch.randn((*z.shape[:-1], self.rnf_dim))), dim=-1)
         for layer in self.decoder_layers:
             h, s = layer(h, s, lengths)
         return h
@@ -257,7 +268,7 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
         )
 
     def _configure_blocks(
-            self, subnet_constructor: Callable[[int, int], nn.Module]
+        self, subnet_constructor: Callable[[int, int], nn.Module]
     ) -> nn.ModuleList:
         blocks = nn.ModuleList()
         for _ in range(self.hparams.num_blocks):
