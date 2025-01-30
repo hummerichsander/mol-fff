@@ -11,6 +11,7 @@ from torch_geometric.utils import unbatch
 from fff.utils.utils import sum_except_batch
 
 from hydrantic.model import ModelHparams, Model
+from hydrantic.hparams import Hparam
 
 from .graph_autoencoder import GraphAutoencoder
 from ..mixins.set_fff import SetFreeFormFlowMixin
@@ -28,8 +29,10 @@ from ..metrics.molecules import Validity, Components, Uniqueness
 class NodeEmbeddingFFFHparams(ModelHparams):
     dim: int
     latent_dim: int
-    hidden_dim: int
-    rnf_dim: int = 0
+    rnf_dim: int = Hparam(ge=1)
+    length_encoding_dim: int = Hparam(ge=1)
+    condition_dim: int = Hparam(ge=0)
+    condition_attr: str | None = None
     mlp_widths: list[int]
     heads: int
 
@@ -100,12 +103,17 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
 
     def __init__(self, hparams):
         super().__init__(hparams)
+        hidden_dim = (
+            self.hparams.length_encoding_dim
+            + self.hparams.rnf_dim
+            + self.hparams.condition_dim
+        )
         self.encoder_layers = nn.ModuleList(
             [
                 self.HiddenFeatureInteraction(
                     self.hparams.dim,
                     self.hparams.dim,
-                    self.hparams.hidden_dim,
+                    hidden_dim,
                     heads=self.hparams.heads,
                     mlp_widths=self.hparams.mlp_widths,
                 )
@@ -117,7 +125,7 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
                 self.HiddenFeatureInteraction(
                     self.hparams.dim,
                     self.hparams.dim,
-                    self.hparams.hidden_dim,
+                    hidden_dim,
                     heads=self.hparams.heads,
                     mlp_widths=self.hparams.mlp_widths,
                 )
@@ -133,6 +141,8 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
             h, lengths = self.embed(batch)
 
         c = None
+        if self.hparams.condition_attr is not None:
+            c = getattr(batch, self.hparams.condition_attr).unsqueeze(1)
 
         loss = torch.zeros(h.shape[0], device=h.device, dtype=h.dtype)
 
@@ -222,12 +232,9 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
         :return: A batch of latent node embeddings."""
 
         z = h
-        s = (
-            length_encoding(lengths, self.hparams.hidden_dim - self.hparams.rnf_dim, z.device, z.dtype)
-            .unsqueeze(1)
-            .repeat(1, z.shape[1], 1)
+        s = self.init_hidden_state(
+            lengths, z.shape[:-1], c=c, device=z.device, dtype=z.dtype
         )
-        s = s.concat((s, torch.randn((*z.shape[:-1], self.rnf_dim))), dim=-1)
         for layer in self.encoder_layers:
             z, s = layer(z, s, lengths)
         return z
@@ -241,15 +248,32 @@ class NodeEmbeddingFFF(Model, SetFreeFormFlowMixin, LengthEncodingMixin):
         :return: A batch of node embeddings"""
 
         h = z
-        s = (
-            length_encoding(lengths, self.hparams.hidden_dim - self.hparams.rnf_dim, z.device, z.dtype)
-            .unsqueeze(1)
-            .repeat(1, z.shape[1], 1)
+        s = self.init_hidden_state(
+            lengths, h.shape[:-1], c=c, device=h.device, dtype=h.dtype
         )
-        s = s.concat((s, torch.randn((*z.shape[:-1], self.rnf_dim))), dim=-1)
         for layer in self.decoder_layers:
             h, s = layer(h, s, lengths)
         return h
+
+    def init_hidden_state(
+        self,
+        lengths: Tensor,
+        shape: torch.Size,
+        c: Tensor | None = None,
+        device: torch.device = torch.device("cpu"),
+        dtype: torch.dtype = torch.float32,
+    ) -> Tensor:
+        batch_size, set_size = shape
+        le = length_encoding(
+            lengths, self.hparams.length_encoding_dim, device, dtype
+        ).unsqueeze(1)
+        rnf = torch.randn((batch_size, 1, self.hparams.rnf_dim))
+        s = torch.concat(
+            (le.repeat(1, set_size, 1), rnf.repeat(1, set_size, 1)), dim=-1
+        )
+        if c is not None:
+            s = torch.concat((s, c.repeat(1, set_size, 1)), dim=-1)
+        return s
 
     def _subnet_constructor(self, channels_in: int, channels_out: int) -> nn.Module:
         return self.SelfAttentionNet(

@@ -1,5 +1,6 @@
 from typing import Union, List, Tuple
 
+import torch
 import pandas as pd
 
 from torch_geometric.data import InMemoryDataset, download_url, Data, Dataset
@@ -42,7 +43,7 @@ class UnimersDataset(InMemoryDataset):
             data = from_smiles(smiles, kekulize=True)
             data.x = data.x[..., 0]
             data.edge_attr = data.edge_attr[..., 0]
-            data.bead = class_mapping[bead]
+            data.bead = torch.tensor([class_mapping[bead]])
             data_list.append(data)
 
         if self.pre_filter is not None:
