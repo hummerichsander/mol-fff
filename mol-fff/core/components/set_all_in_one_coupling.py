@@ -16,8 +16,7 @@ class SetAllInOneBlock(AllInOneBlock):
 
         if tuple(x.shape[1:]) != self.dims_in[0]:
             raise RuntimeError(
-                f"Expected input of shape {self.dims_in[0]}, "
-                f"got {tuple(x.shape[1:])}."
+                f"Expected input of shape {self.dims_in[0]}, got {tuple(x.shape[1:])}."
             )
         if self.householder:
             self.w_perm = self._construct_householder_permutation()

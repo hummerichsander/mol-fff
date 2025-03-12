@@ -28,7 +28,7 @@ def plot_grid(
     ncols: int = 4,
     box_size: tuple[int] = (3.3, 2.5),
     max_workers: Optional[int] = None,
-    **kwargs
+    **kwargs,
 ) -> Figure:
     """Plots a grid of input_iterable objects using matplotlib.pyplot.
     :param plot_fn: function to plot each input object. Must accept an ax argument.

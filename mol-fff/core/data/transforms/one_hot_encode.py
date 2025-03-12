@@ -19,9 +19,9 @@ class OneHotEncode(BaseTransform):
     def __call__(self, data: Data | HeteroData):
         for store in data.stores:
             for attr, num_classes in zip(self.attrs, self.num_classes):
-                assert torch.equal(
-                    store[attr], store[attr].to(dtype=torch.int)
-                ), "Attributes must be integers"
+                assert torch.equal(store[attr], store[attr].to(dtype=torch.int)), (
+                    "Attributes must be integers"
+                )
                 store[attr] = F.one_hot(
                     store[attr] + self.shift, num_classes=num_classes
                 ).to(dtype=torch.float)

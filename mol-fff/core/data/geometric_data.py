@@ -60,7 +60,7 @@ class GeometricData(PyTorchData, ABC):
 
     @staticmethod
     def _get_transform_composition(
-        transforms: list[tuple[str, dict]] | Compose
+        transforms: list[tuple[str, dict]] | Compose,
     ) -> Compose:
         """Converts a list of transform strings + kwargs to a transform composition.
         :param transforms: A list of transform strings + kwargs.

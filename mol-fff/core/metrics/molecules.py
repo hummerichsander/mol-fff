@@ -83,7 +83,6 @@ class Components(MolecularMetric):
         self.check_validity = check_validity
 
     def forward(self, molecules: list[RWMol]) -> float:
-
         with concurrent.futures.ThreadPoolExecutor() as executor:
             components = list(executor.map(self._get_num_components, molecules))
 

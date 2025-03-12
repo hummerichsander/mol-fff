@@ -20,9 +20,9 @@ class Precision(nn.Module):
             y = y.argmax(dim=-1)
 
         for k in self.k_list:
-            assert (
-                k <= yhat.shape[-1]
-            ), f"k={k} is greater than the number of predictions {yhat.shape[1]}"
+            assert k <= yhat.shape[-1], (
+                f"k={k} is greater than the number of predictions {yhat.shape[1]}"
+            )
             top_k = yhat.topk(k, dim=-1).indices
             correct = top_k.eq(y.unsqueeze(1).expand_as(top_k)).sum().item()
             total = y.shape[0]

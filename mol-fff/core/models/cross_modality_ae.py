@@ -5,35 +5,29 @@ from hydrantic.model import ModelHparams, Model
 from torch import nn, Tensor
 from torch_geometric import nn as gnn
 
-from ..components.helper import Concatenate
-from ..components.mlp import MLP
-from ..components.norms.graph import GraphNormType, get_graph_norm
-from ..components.norms.vector import VectorNormType, get_vector_norm
-from ..metrics import GeometricPrecision, CrossEntropy, MMD
-from ..utils.graphs import compute_number_of_connected_components, is_equal_graph
-from ..utils.utils import import_from_string
+from core.components.helper import Concatenate
+from core.components.mlp import MLP
+from core.components.norms.graph import GraphNormType, get_graph_norm
+from core.components.norms.vector import VectorNormType, get_vector_norm
+from core.metrics import GeometricPrecision, CrossEntropy, MMD
+from core.utils.graphs import compute_number_of_connected_components, is_equal_graph
+from core.utils.utils import import_from_string
 
 
-class GraphAutoencoderHparams(ModelHparams):
+class CrossModalityAEHparams(ModelHparams):
     node_feature_dim: int
     node_feature_embedding_dim: int
     edge_feature_dim: int
     edge_feature_embedding_dim: int
 
-    random_node_feature_dim: int = 0
-
     encoder_depth: int
-    encoder_mlp_widths: list[int]
-    encoder_aggr: str = "core.components.aggregations.VPA"
-    encoder_node_normalization: GraphNormType = "graph"
-    encoder_edge_normalization: VectorNormType = "layer"
+    decoder_depth: int
 
-    node_feature_decoder_mlp_widths: list[int]
-    node_feature_decoder_normalization: VectorNormType = "layer"
-
-    structure_decoder_mlp_node_widths: list[int]
-    structure_decoder_mlp_edge_widths: list[int]
-    structure_decoder_normalization: VectorNormType = "layer"
+    mlp_widths: list[int]
+    random_node_feature_dim: int = 0
+    aggr: str = "core.components.aggregations.VPA"
+    node_normalization: GraphNormType = "graph"
+    edge_normalization: VectorNormType = "layer"
 
     noise: float = 0.0
     node_cross_entropy_beta: float = 1.0
@@ -45,11 +39,11 @@ class GraphAutoencoderHparams(ModelHparams):
     profile: Literal["qm9", "zinc", "unimers"] = "qm9"
 
 
-class GraphAutoencoder(Model):
-    hparams_schema = GraphAutoencoderHparams
+class CrossModalityAE(Model):
+    hparams_schema = CrossModalityAEHparams
 
-    class EncoderLayer(gnn.MessagePassing):
-        """Encoder layer for the split autoencoder."""
+    class MPLayer(gnn.MessagePassing):
+        """Message passing layer for the split autoencoder."""
 
         def __init__(
             self,
@@ -106,62 +100,7 @@ class GraphAutoencoder(Model):
         def edge_update(self, edge_index: Tensor, x_i: Tensor, x_j: Tensor, edge_attr: Tensor) -> Tensor:
             return self.mlp_edge_update(self.concat(x_i, x_j, edge_attr))
 
-    class Decoder(gnn.MessagePassing):
-        """Decoder."""
-
-        def __init__(
-            self,
-            in_channels: int,
-            node_out_channels: int,
-            edge_out_channels: int,
-            normalization: VectorNormType = None,
-            mlp_node_widths: List[int] = [],
-            mlp_edge_widths: List[int] = [],
-        ):
-            super().__init__()
-
-            self.concat = Concatenate(dim=-1)
-            self.structure_embedding = MLP(
-                input_dim=in_channels,
-                output_dim=in_channels,
-                intermediate_dims=mlp_node_widths,
-                norm=normalization,
-            )
-            self.edge_classifier = MLP(
-                input_dim=2 * in_channels + 1,
-                output_dim=edge_out_channels,
-                intermediate_dims=mlp_edge_widths,
-                norm=normalization,
-            )
-            self.node_classifier = MLP(
-                input_dim=in_channels,
-                output_dim=node_out_channels,
-                intermediate_dims=mlp_node_widths,
-            )
-
-        def forward(
-            self,
-            x: Tensor,
-            edge_index: Tensor,
-            batch: Tensor,
-        ) -> tuple[Tensor, Tensor]:
-            edges = self.edge_updater(edge_index, x=x)
-            nodes = self.propagate(edge_index, x=x)
-            return nodes, edges
-
-        def edge_update(self, edge_index: Tensor, x_i: Tensor, x_j: Tensor) -> Tensor:
-            x_i = self.structure_embedding(x_i)
-            x_j = self.structure_embedding(x_j)
-            edge_update_in = self.concat(x_i, x_j, (x_i - x_j).pow(2).sum(-1, keepdim=True))
-            return self.edge_classifier(edge_update_in)
-
-        def message(self, x_j: Tensor) -> Tensor:
-            return x_j
-
-        def update(self, aggr_out: Tensor, x: Tensor) -> Tensor:
-            return self.node_classifier(aggr_out)
-
-    def __init__(self, hparams: GraphAutoencoderHparams):
+    def __init__(self, hparams: CrossModalityAEHparams):
         super().__init__(hparams)
 
         # nn modules
@@ -172,27 +111,39 @@ class GraphAutoencoder(Model):
         self.edge_embedding_layer = nn.Linear(self.hparams.edge_feature_dim, self.hparams.edge_feature_embedding_dim)
         self.encoder_layers = nn.ModuleList(
             [
-                self.EncoderLayer(
+                self.MPLayer(
                     node_in_channels=self.hparams.node_feature_embedding_dim,
                     node_out_channels=self.hparams.node_feature_embedding_dim,
                     edge_in_channels=self.hparams.edge_feature_embedding_dim,
                     edge_out_channels=self.hparams.edge_feature_embedding_dim,
-                    aggr=self.hparams.encoder_aggr,
-                    node_normalization=self.hparams.encoder_node_normalization,
-                    edge_normalization=self.hparams.encoder_edge_normalization,
-                    mlp_widths=self.hparams.encoder_mlp_widths,
+                    aggr=self.hparams.aggr,
+                    node_normalization=self.hparams.node_normalization,
+                    edge_normalization=self.hparams.edge_normalization,
+                    mlp_widths=self.hparams.mlp_widths,
                 )
                 for _ in range(self.hparams.encoder_depth)
             ]
         )
-
-        self.decoder = self.Decoder(
-            in_channels=self.hparams.node_feature_embedding_dim,
-            node_out_channels=self.hparams.node_feature_dim,
-            edge_out_channels=self.hparams.edge_feature_dim,
-            normalization=self.hparams.structure_decoder_normalization,
-            mlp_node_widths=self.hparams.structure_decoder_mlp_node_widths,
-            mlp_edge_widths=self.hparams.structure_decoder_mlp_edge_widths,
+        self.decoder_layers = nn.ModuleList(
+            [
+                self.MPLayer(
+                    node_in_channels=self.hparams.node_feature_embedding_dim,
+                    node_out_channels=self.hparams.node_feature_embedding_dim,
+                    edge_in_channels=self.hparams.edge_feature_embedding_dim,
+                    edge_out_channels=self.hparams.edge_feature_embedding_dim,
+                    aggr=self.hparams.aggr,
+                    node_normalization=self.hparams.node_normalization,
+                    edge_normalization=self.hparams.edge_normalization,
+                    mlp_widths=self.hparams.mlp_widths,
+                )
+                for _ in range(self.hparams.decoder_depth)
+            ]
+        )
+        self.node_classification_layer = nn.Linear(
+            self.hparams.node_feature_embedding_dim, self.hparams.node_feature_dim
+        )
+        self.edge_classification_layer = nn.Linear(
+            self.hparams.edge_feature_embedding_dim, self.hparams.edge_feature_dim
         )
 
         # losses and metrics
@@ -244,7 +195,13 @@ class GraphAutoencoder(Model):
         :param batch: Batch indices.
         :return: A tuple of node features and edge features."""
 
-        x, edge_attr = self.decoder(x, edge_index, batch)
+        edge_attr = torch.zeros(
+            (edge_index.shape[1], self.hparams.edge_feature_embedding_dim), dtype=x.dtype, device=x.device
+        )
+        for layer in self.decoder_layers:
+            x, edge_attr = layer(x, edge_index, edge_attr, batch)
+        x = self.node_classification_layer(x)
+        edge_attr = self.edge_classification_layer(edge_attr)
         return x, edge_attr
 
     def forward(

@@ -24,7 +24,6 @@ class VPA(gnn.Aggregation):
         dim_size: Optional[int] = None,
         dim: int = -2,
     ) -> Tensor:
-
         # apply sum aggregation on x
         sum_aggregation = self.reduce(x, index, ptr, dim_size, dim, reduce="sum")
 
